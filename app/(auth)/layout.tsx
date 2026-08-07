@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout() {
   redirect("/chat");
 }

@@ -69,6 +69,26 @@ const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
 const MESSAGE_TEXTAREA_MAX_HEIGHT = 136;
 const AUDIO_WAVEFORM_BARS = [10, 18, 14, 24, 16, 30, 20, 12, 26, 18, 32, 14, 24, 16];
 
+interface Suggestion {
+  id: string
+  text: string
+  isPdf?: boolean
+  pdfLabel?: string
+}
+
+const SUGGESTIONS: Suggestion[] = [
+  { id: "s1", text: "Hola 👋 ¿cómo estás? En un momento te atendemos." },
+  { id: "s2", text: "Buenos días, gracias por escribirnos. ¿En qué podemos ayudarte?" },
+  { id: "s3", text: "📄 Te comparto el catálogo completo de productos.", isPdf: true, pdfLabel: "CATALOGO_PRODUCTOS.pdf" },
+  { id: "s4", text: "📄 Mira todos los colores disponibles de CIELO.", isPdf: true, pdfLabel: "CATALOGO_CIELO.pdf" },
+  { id: "s5", text: "📄 Nuevos modelos de temporada - Te envío el catálogo.", isPdf: true, pdfLabel: "NUEVOS_MODELOS.pdf" },
+  { id: "s6", text: "Los precios varían según el modelo y color. ¿Cuál te interesa?" },
+  { id: "s7", text: "¿De qué talla necesitas? Tenemos desde S hasta XL." },
+  { id: "s8", text: "🚚 Hacemos delivery a todo el Perú." },
+  { id: "s9", text: "💳 Aceptamos Yape, Plin, transferencia y efectivo." },
+  { id: "s10", text: "¿Quieres que te enviemos más información por WhatsApp?" },
+]
+
 const formatAudioDuration = (seconds: number) => {
   const safeSeconds = Math.max(0, Math.floor(seconds));
   const minutes = Math.floor(safeSeconds / 60);
@@ -1900,6 +1920,32 @@ export default function ChatPage() {
     }
   };
 
+  const handleSendSuggestion = (suggestion: Suggestion) => {
+    const text = suggestion.text
+    setMessages((current) => [
+      ...current,
+      {
+        id: `draft-${getTimestamp()}`,
+        type: "outgoing",
+        text,
+        time: getMessageTime(),
+      },
+    ])
+    if (suggestion.isPdf && suggestion.pdfLabel) {
+      const pdfLabel = suggestion.pdfLabel
+      setMessages((current) => [
+        ...current,
+        {
+          id: `file-${getTimestamp()}`,
+          type: "outgoing-file" as const,
+          text: pdfLabel,
+          time: getMessageTime(),
+        },
+      ])
+    }
+    moveFromWaiting(activeConversationId ?? "")
+  }
+
   const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -2333,6 +2379,57 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
+
+        {/* Quick Reply Suggestions */}
+        {activeConversationId && waitingIds.has(activeConversationId) && (
+          <div className="shrink-0 border-t border-border bg-gradient-to-b from-background to-muted/30 px-3 py-3">
+            <div className="mb-2.5 flex items-center gap-2">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 shadow-sm">
+                <SparklesIcon className="h-3.5 w-3.5 text-white" />
+              </div>
+              <span className="text-xs font-semibold text-foreground">
+                Respuestas rapidas
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Toca para enviar
+              </span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {SUGGESTIONS.map((suggestion, idx) => (
+                <button
+                  key={suggestion.id}
+                  type="button"
+                  onClick={() => handleSendSuggestion(suggestion)}
+                  className={`group relative shrink-0 overflow-hidden rounded-2xl transition-all duration-200 hover:shadow-md active:scale-[0.96] active:shadow-sm ${
+                    suggestion.isPdf
+                      ? "bg-gradient-to-br from-red-50 to-rose-100 dark:from-red-500/10 dark:to-rose-500/5 border-2 border-red-200 dark:border-red-500/20"
+                      : idx < 2
+                        ? "bg-gradient-to-br from-blue-50 to-sky-100 dark:from-blue-500/10 dark:to-sky-500/5 border border-blue-200 dark:border-blue-500/20"
+                        : "bg-gradient-to-br from-slate-50 to-gray-100 dark:from-white/5 dark:to-white/[0.02] border border-border hover:border-muted-foreground/30"
+                  }`}
+                  style={{ maxWidth: "240px", minWidth: "140px" }}
+                >
+                  <div className="px-3.5 py-3">
+                    {suggestion.isPdf && (
+                      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-red-500 shadow-sm">
+                        <DocumentPlusIcon className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                    <p className={`text-xs leading-[1.5] ${
+                      suggestion.isPdf
+                        ? "text-red-800 dark:text-red-300 font-semibold"
+                        : idx < 2
+                          ? "text-blue-800 dark:text-blue-300"
+                          : "text-foreground"
+                    }`}>
+                      {suggestion.text}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <footer className="relative z-20 shrink-0 bg-muted/60 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:px-3 md:pb-3">
           <ChatWallpaperLayer />

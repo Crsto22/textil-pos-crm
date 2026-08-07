@@ -84,10 +84,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    if (!isChatPage) {
-      setHideChatMobileChrome(false);
-      return;
-    }
+    if (!isChatPage) return;
 
     const handleChatMobileView = (event: Event) => {
       const customEvent = event as CustomEvent<{ conversationOpen?: boolean }>;
