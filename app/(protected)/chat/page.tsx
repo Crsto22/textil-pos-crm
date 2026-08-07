@@ -1954,10 +1954,13 @@ export default function ChatPage() {
     if (text.includes("precio") || text.includes("cuanto") || text.includes("cuesta") || text.includes("s/") || text.includes("monto") || text.includes("costo")) {
       return "¡Hola! El modelo CIELO está S/89.00 con delivery incluido a todo el Perú. Aceptamos Yape, Plin, transferencia y efectivo. ¿Te gustaría ver los colores disponibles? 😊"
     }
-    if (text.includes("color") || text.includes("colores") || text.includes("azul") || text.includes("beige") || text.includes("camel") || text.includes("chocolate") || text.includes("gris")) {
+    // Color check: match specific color words, not random letters
+    const colorWords = ["azul", "beige", "camel", "chocolate", "gris", "negro", "blanco", "rojo", "verde"]
+    if (text.includes("color") || text.includes("colores") || colorWords.some((w) => text.includes(w))) {
       return "¡Tenemos 5 colores hermosos! 🌈 CIELO viene en Azul, Beige, Camel, Chocolate y Gris Oscuro. ¿Cuál te gusta más? Puedo enviarte el catálogo en PDF si gustas."
     }
-    if (text.includes("talla") || text.includes("tallas") || text.includes("tamaño") || text.includes("medida") || text.includes("s") || text.includes("m") || text.includes("l") || text.includes("xl")) {
+    // Talla check: only match complete words like "talla", "tallas", "talla?" etc, NOT single letters s,m,l,xl
+    if (/\btalla(s)?\b/.test(text) || /\btamaño\b/.test(text) || /\bmedida(s)?\b/.test(text)) {
       return "¡Claro! Contamos con talla S, M, L y XL. ¿Qué talla necesitas? También te podemos ayudar a elegir la mejor talla según tus medidas. 😊"
     }
     if (text.includes("catalogo") || text.includes("catálogo") || text.includes("pdf") || text.includes("fotos") || text.includes("foto") || text.includes("imagen") || text.includes("ver")) {
@@ -1969,7 +1972,7 @@ export default function ChatPage() {
     if (text.includes("pago") || text.includes("yape") || text.includes("plin") || text.includes("transferencia") || text.includes("tarjeta") || text.includes("efectivo")) {
       return "💳 Aceptamos todos los medios de pago: Yape, Plin, transferencia bancaria, tarjeta y efectivo. ¡Tú eliges el que más te convenga!"
     }
-    if (text.includes("stock") || text.includes("disponible") || text.includes("hay") || text.includes("tiene") || text.includes("tienen")) {
+    if (text.includes("stock") || text.includes("disponible")) {
       return "¡Sí! Tenemos stock disponible de todos los colores del modelo CIELO. ¿Cuál te interesa? Puedo reservártelo si gustas. 😊"
     }
     return "¡Gracias por escribirnos! 😊 En Kiments tenemos el modelo CIELO disponible en 5 colores desde S/89.00. ¿En qué puedo ayudarte hoy?"
