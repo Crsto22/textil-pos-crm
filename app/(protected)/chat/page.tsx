@@ -2313,6 +2313,11 @@ export default function ChatPage() {
 
   const aiRespondedRef = useRef(false)
   const lastProcessedMsgId = useRef("")
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, isAiTyping])
 
   useEffect(() => {
     if (!isAiMode || !activeConversationId) return
@@ -2573,6 +2578,7 @@ export default function ChatPage() {
                   </span>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           </div>
         </div>
