@@ -1975,67 +1975,102 @@ export default function ChatPage() {
     return "¡Gracias por escribirnos! 😊 En Kiments tenemos el modelo CIELO disponible en 5 colores desde S/89.00. ¿En qué puedo ayudarte hoy?"
   }
 
-  const triggerSimulatedConversation = (initialText: string) => {
-    if (!isAiMode) return
-    // Step 1: AI responds to initial message
-    setIsAiTyping(true)
-    const aiResponse1 = generateAiResponse(initialText)
-    setTimeout(() => {
-      setIsAiTyping(false)
-      setMessages((current) => [
-        ...current,
-        { id: `ai-${getTimestamp()}`, type: "outgoing", text: aiResponse1, time: getMessageTime() },
-      ])
-      moveFromWaiting(activeConversationId ?? "")
+  const simulateAiMessage = (text: string, delay: number): Promise<void> => {
+    return new Promise((resolve) => {
+      setIsAiTyping(true)
+      setTimeout(() => {
+        setIsAiTyping(false)
+        setMessages((current) => [
+          ...current,
+          { id: `ai-${getTimestamp()}`, type: "outgoing", text, time: getMessageTime() },
+        ])
+        resolve()
+      }, delay)
+    })
+  }
 
-      // Step 2: Client replies back (simulated)
-      const clientFollowUps = [
-        "me gustaria ver el azul",
-        "si, mandame el catalogo por favor",
-        "tienes delivery a San Juan de Lurigancho?",
-        "aceptas yape?",
-        "ok, envuelvemelo para regalo",
-        "lo quiero en talla M",
-        "cual es el precio con delivery?",
-        "me lo llevo, mandame el yape",
-      ]
-      const clientReply = clientFollowUps[Math.floor(Math.random() * clientFollowUps.length)]
-
+  const simulateIncomingMessage = (text: string, delay: number): Promise<void> => {
+    return new Promise((resolve) => {
       setTimeout(() => {
         setMessages((current) => [
           ...current,
-          { id: `in-sim-${getTimestamp()}`, type: "incoming", text: clientReply, time: getMessageTime() },
+          { id: `in-sim-${getTimestamp()}`, type: "incoming", text, time: getMessageTime() },
         ])
+        resolve()
+      }, delay)
+    })
+  }
 
-        // Step 3: AI final response
-        setIsAiTyping(true)
-        const aiResponse2 = generateAiResponse(clientReply)
-        setTimeout(() => {
-          setIsAiTyping(false)
-          setMessages((current) => [
-            ...current,
-            { id: `ai2-${getTimestamp()}`, type: "outgoing", text: aiResponse2, time: getMessageTime() },
-          ])
+  const triggerSimulatedConversation = async (initialText: string) => {
+    if (!isAiMode) return
 
-          // Step 4: Client confirms purchase
-          const confirmations = [
-            "listo, lo compro. pasame el yape",
-            "ya, enviame el numero para transferir",
-            "perfecto, quiero el azul talla M. dime como pago",
-            "ok compro, enviame los datos de cuenta porfa",
-            "trato hecho, mandame el yape nomas",
-          ]
-          const confirmation = confirmations[Math.floor(Math.random() * confirmations.length)]
+    // Step 1: AI responds to initial message
+    let lastClientText = initialText
+    await simulateAiMessage(generateAiResponse(lastClientText), 2500 + Math.random() * 1500)
+    moveFromWaiting(activeConversationId ?? "")
 
-          setTimeout(() => {
-            setMessages((current) => [
-              ...current,
-              { id: `in-confirm-${getTimestamp()}`, type: "incoming", text: confirmation, time: getMessageTime() },
-            ])
-          }, 3000 + Math.random() * 2000)
-        }, 2500 + Math.random() * 1500)
-      }, 3000 + Math.random() * 2000)
-    }, 2500 + Math.random() * 1500)
+    // Step 2: Client follows up
+    const followUps = [
+      "me gustaria ver el azul, tienes foto?",
+      "cuales son los precios de cada color?",
+      "tienes delivery a San Juan de Lurigancho?",
+      "aceptas yape? como es el pago?",
+      "lo quiero en talla M, tienen stock?",
+      "puedes enviarme el catalogo por favor?",
+      "hay descuento si compro 2?",
+      "me interesa, dime los pasos para comprar",
+    ]
+    lastClientText = followUps[Math.floor(Math.random() * followUps.length)]
+    await simulateIncomingMessage(lastClientText, 3000 + Math.random() * 2000)
+
+    // Step 3: AI responds to follow-up
+    await simulateAiMessage(generateAiResponse(lastClientText), 2500 + Math.random() * 1500)
+
+    // Step 4: Client asks about payment/delivery
+    const paymentQs = [
+      "ok y cual es tu numero de yape?",
+      "cuanto sale con delivery incluido?",
+      "haces envio a provincia?",
+      "tienes plin tambien?",
+      "cuanto demora el delivery?",
+      "el pago es al contado o puedo pagar cuando llegue?",
+      "haces factura?",
+    ]
+    lastClientText = paymentQs[Math.floor(Math.random() * paymentQs.length)]
+    await simulateIncomingMessage(lastClientText, 3000 + Math.random() * 2000)
+
+    // Step 5: AI responds
+    await simulateAiMessage(generateAiResponse(lastClientText), 2500 + Math.random() * 1500)
+
+    // Step 6: Client confirms / asks final details
+    const preConfirms = [
+      "ya, enviame el yape entonces",
+      "ok, mandame los datos de la cuenta",
+      "perfecto, lo quiero. como es el proceso?",
+      "listo, me convenciste. pasame el numero",
+      "dale, quiero el azul talla M. dime como pago",
+      "ya esta, enviame el yape nomas",
+    ]
+    lastClientText = preConfirms[Math.floor(Math.random() * preConfirms.length)]
+    await simulateIncomingMessage(lastClientText, 3000 + Math.random() * 2000)
+
+    // Step 7: AI final response
+    await simulateAiMessage(generateAiResponse(lastClientText), 2500 + Math.random() * 1500)
+
+    // Step 8: Client leaves on read (visto)
+    const vistoMessages = [
+      "ok gracias, ahi te hago el yape",
+      "listo gracias por la info",
+      "ya estoy haciendo la transferencia",
+      "perfecto en un rato te confirmo",
+      "ok ahi te aviso cuando lo haga",
+      "gracias quedo atento",
+      "dale en unos minutos te mando el comprobante",
+    ]
+    await simulateIncomingMessage(vistoMessages[Math.floor(Math.random() * vistoMessages.length)], 4000 + Math.random() * 2000)
+
+    // Step 9: Simulate "read" indicator
+    await simulateIncomingMessage("✓✓ Leido", 2000)
   }
 
   const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
