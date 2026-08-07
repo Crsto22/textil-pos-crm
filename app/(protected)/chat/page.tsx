@@ -2309,26 +2309,28 @@ export default function ChatPage() {
   };
 
   const aiRespondedRef = useRef(false)
+  const lastProcessedMsgId = useRef("")
 
   useEffect(() => {
     if (!isAiMode || !activeConversationId) return
     const lastMsg = messages[messages.length - 1]
-    if (lastMsg?.type === "incoming" && !aiRespondedRef.current) {
+    if (!lastMsg || lastMsg.id === lastProcessedMsgId.current) return
+
+    lastProcessedMsgId.current = lastMsg.id
+
+    if (lastMsg.type === "incoming" && !aiRespondedRef.current) {
       const hasOutgoing = messages.some((m) => m.type === "outgoing" || m.type === "outgoing-file" || m.type === "outgoing-audio")
       if (!hasOutgoing) {
         aiRespondedRef.current = true
-        const text = lastMsg.text
-        setTimeout(() => triggerSimulatedConversation(text), 500)
+        setTimeout(() => triggerSimulatedConversation(lastMsg.text), 500)
       }
     }
-    if (lastMsg?.type !== "incoming") {
-      aiRespondedRef.current = false
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length])
+  }, [messages.length, isAiMode])
 
   useEffect(() => {
     aiRespondedRef.current = false
+    lastProcessedMsgId.current = ""
   }, [activeConversationId])
 
   const activeAttachment =
