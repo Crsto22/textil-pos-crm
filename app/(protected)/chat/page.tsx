@@ -2438,7 +2438,7 @@ export default function ChatPage() {
         ) : (
           <>
         <header className="shrink-0 border-b border-border bg-background">
-          <div className="flex min-h-[84px] items-center justify-between gap-4 border-l-4 border-muted-foreground px-4 py-3">
+          <div className="flex min-h-[64px] items-center justify-between gap-2 border-l-4 border-muted-foreground px-3 py-2 md:min-h-[84px] md:gap-4 md:px-4 md:py-3">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -2467,49 +2467,49 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => setIsAiMode(true)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-all md:gap-1.5 md:px-3 ${
                   isAiMode
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <SparklesIcon className="h-3.5 w-3.5" />
-                Kiments IA
+                <span className="hidden sm:inline">Kiments IA</span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsAiMode(false)}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-semibold transition-all md:gap-1.5 md:px-3 ${
                   !isAiMode
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 <UserIconSolid className="h-3.5 w-3.5" />
-                Humano
+                <span className="hidden sm:inline">Humano</span>
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
               {!waitingIds.has(activeConversationId) && (
               <div className="flex overflow-hidden rounded-full bg-muted text-foreground shadow-sm">
                 {resolvedIds.has(activeConversationId) ? (
                   <Button
                     onClick={() => handleReopenCurrent()}
-                    className="h-10 rounded-none bg-muted px-9 text-xs font-bold text-foreground hover:bg-muted/80"
+                    className="h-8 rounded-none bg-muted px-3 text-[10px] font-bold text-foreground hover:bg-muted/80 md:h-10 md:px-9 md:text-xs"
                   >
                     REHACER
                   </Button>
                 ) : (
                   <Button
                     onClick={() => handleResolveCurrent()}
-                    className="h-10 rounded-none bg-muted px-9 text-xs font-bold text-foreground hover:bg-muted/80"
+                    className="h-8 rounded-none bg-muted px-3 text-[10px] font-bold text-foreground hover:bg-muted/80 md:h-10 md:px-9 md:text-xs"
                   >
                     RESOLVER
                   </Button>
                 )}
-                <Button className="h-10 w-11 rounded-none border-l border-border bg-muted px-0 text-foreground hover:bg-muted/80">
-                  <ChevronDownIcon className="h-4 w-4" />
+                <Button className="h-8 w-8 rounded-none border-l border-border bg-muted px-0 text-foreground hover:bg-muted/80 md:h-10 md:w-11">
+                  <ChevronDownIcon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 </Button>
               </div>
               )}
