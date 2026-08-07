@@ -15,6 +15,15 @@ import {
   getStoredSession,
   type CrmSession,
 } from "@/lib/auth/session";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -23,9 +32,10 @@ interface HeaderProps {
 
 const pageTitles: Record<string, string> = {
   "/chat": "Chat",
-  "/conexion": "Conexion",
   "/contacto": "Contacto",
+  "/conexiones": "Conexiones",
   "/configuracion": "Configuracion",
+  "/etiquetas": "Etiquetas",
   "/reportes": "Reportes",
 };
 
@@ -94,6 +104,12 @@ export function Header({ onMenuToggle, showMenuButton = true }: HeaderProps) {
     router.replace("/");
   };
 
+  const userName = session?.name ?? "Usuario CRM";
+  const userEmail = session?.email ?? "Sesion activa";
+  const nameParts = userName.split(" ");
+  const firstName = nameParts[0] ?? "";
+  const lastName = nameParts.slice(1).join(" ") || (firstName.charAt(1) ?? "");
+
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[oklch(0.13_0_0/.95)]">
@@ -141,24 +157,78 @@ export function Header({ onMenuToggle, showMenuButton = true }: HeaderProps) {
 
             <span className="mx-0.5 hidden h-5 w-px bg-slate-200 sm:block dark:bg-white/10" />
 
-            <div className="hidden min-w-0 max-w-[160px] text-right leading-none sm:block">
-              <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-white">
-                {session?.name ?? "Usuario CRM"}
-              </p>
-              <p className="mt-0.5 truncate text-[11px] text-blue-600 dark:text-blue-400">
-                {session?.email ?? "Sesion activa"}
-              </p>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="group flex items-center gap-2.5 rounded-xl px-1.5 py-1 outline-none ring-blue-500/40 transition-colors hover:bg-slate-100 focus-visible:ring-2 dark:hover:bg-white/10"
+                  aria-label="Menu de usuario"
+                >
+                  <div className="relative shrink-0">
+                    <UserAvatar
+                      nombre={firstName}
+                      apellido={lastName}
+                      className="h-8 w-8 ring-2 ring-slate-200 transition-all group-hover:ring-slate-300 dark:ring-white/10 dark:group-hover:ring-white/20"
+                      fallbackClassName="bg-gradient-to-br from-slate-500 to-slate-700 text-white"
+                      textClassName="text-[11px] font-bold"
+                    />
+                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-emerald-500 dark:border-[oklch(0.13_0_0)]" />
+                  </div>
+                  <div className="hidden min-w-0 max-w-[140px] text-left leading-none sm:block">
+                    <p className="truncate text-[13px] font-semibold text-slate-900 dark:text-white">
+                      {userName}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-blue-600 dark:text-blue-400">
+                      {userEmail}
+                    </p>
+                  </div>
+                </button>
+              </DropdownMenuTrigger>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-300"
-              aria-label="Cerrar sesion"
-              title="Cerrar sesion"
-            >
-              <ArrowRightStartOnRectangleIcon className="h-5 w-5" />
-            </button>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="w-64 overflow-hidden p-0"
+              >
+                <DropdownMenuLabel className="p-0 font-normal">
+                  <div className="flex items-center gap-3 bg-gradient-to-br from-slate-50 to-blue-50/40 p-4 dark:from-white/[0.03] dark:to-blue-500/5">
+                    <div className="relative shrink-0">
+                      <UserAvatar
+                        nombre={firstName}
+                        apellido={lastName}
+                        className="h-11 w-11 ring-2 ring-slate-200 dark:ring-white/10"
+                        fallbackClassName="bg-gradient-to-br from-slate-500 to-slate-700 text-white"
+                        textClassName="text-xs font-bold"
+                      />
+                      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 dark:border-[hsl(var(--popover))]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13.5px] font-semibold text-slate-900 dark:text-white">
+                        {userName}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {userEmail}
+                      </p>
+                      <span className="mt-1.5 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold leading-none text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                        CRM
+                      </span>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator className="my-0" />
+
+                <div className="p-1">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm text-rose-600 focus:bg-rose-50 focus:text-rose-700 dark:text-rose-400 dark:focus:bg-rose-500/10 dark:focus:text-rose-300"
+                  >
+                    <ArrowRightStartOnRectangleIcon className="h-4 w-4 shrink-0" />
+                    <span>Cerrar sesion</span>
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

@@ -10,7 +10,9 @@ import { cn } from "@/lib/utils";
 function MobileBottomNav({ hidden }: { hidden: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
-  const items = navSections.flatMap((section) => section.items);
+  const items = navSections.flatMap((section) => section.items).filter(
+    (item) => item.href !== "/reportes" && item.href !== "/etiquetas"
+  );
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/chat" && pathname.startsWith(`${href}/`));
@@ -23,7 +25,7 @@ function MobileBottomNav({ hidden }: { hidden: boolean }) {
       )}
       aria-label="Navegacion principal"
     >
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-4 gap-1">
         {items.map((item) => {
           const active = isActive(item.href);
           const Icon = active ? item.iconActive : item.icon;
@@ -51,11 +53,6 @@ function MobileBottomNav({ hidden }: { hidden: boolean }) {
                 )}
               >
                 <Icon className="h-6 w-6" />
-                {item.href === "/chat" && (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-bold text-white">
-                    6
-                  </span>
-                )}
               </span>
               <span className="w-full truncate text-center">{item.label}</span>
             </button>
@@ -70,38 +67,27 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isChatPage = pathname === "/chat";
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [hideChatMobileChrome, setHideChatMobileChrome] = useState(isChatPage);
+  const [hideChatMobileChrome, setHideChatMobileChrome] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isChatPage);
   const previousPathnameRef = useRef(pathname);
 
   useEffect(() => {
-    if (pathname === previousPathnameRef.current) {
-      return;
-    }
-
+    if (pathname === previousPathnameRef.current) return;
     previousPathnameRef.current = pathname;
 
     if (pathname === "/chat") {
       const frame = window.requestAnimationFrame(() => {
         setSidebarCollapsed(true);
       });
-
       return () => window.cancelAnimationFrame(frame);
     }
   }, [pathname]);
 
   useEffect(() => {
     if (!isChatPage) {
-      const frame = window.requestAnimationFrame(() => {
-        setHideChatMobileChrome(false);
-      });
-
-      return () => window.cancelAnimationFrame(frame);
+      setHideChatMobileChrome(false);
+      return;
     }
-
-    const frame = window.requestAnimationFrame(() => {
-      setHideChatMobileChrome(true);
-    });
 
     const handleChatMobileView = (event: Event) => {
       const customEvent = event as CustomEvent<{ conversationOpen?: boolean }>;
@@ -111,7 +97,6 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
     window.addEventListener("crm:chat-mobile-view", handleChatMobileView);
 
     return () => {
-      window.cancelAnimationFrame(frame);
       window.removeEventListener("crm:chat-mobile-view", handleChatMobileView);
     };
   }, [isChatPage]);

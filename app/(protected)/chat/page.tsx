@@ -17,7 +17,9 @@ import {
   ArrowLeftIcon,
   BackspaceIcon,
   CameraIcon,
+  ChatBubbleLeftRightIcon,
   ChevronDownIcon,
+  ShoppingBagIcon,
   DocumentPlusIcon,
   ArrowDownTrayIcon,
   PlusIcon,
@@ -48,10 +50,17 @@ import { EmojiStyle, SuggestionMode, Theme } from "emoji-picker-react";
 import type { PDFDocumentLoadingTask, RenderTask } from "pdfjs-dist";
 
 import { ChatAvatar } from "@/components/chat/ChatAvatar";
-import { conversations, initialTimeline, type ChatMessage, type Conversation } from "@/components/chat/chat-data";
+import { conversations, initialMessagesByConversation, initialTimeline, type ChatMessage, type Conversation } from "@/components/chat/chat-data";
 import { ChatWallpaperLayer } from "@/components/chat/ChatWallpaperLayer";
+import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
@@ -81,6 +90,23 @@ const formatFileSize = (bytes: number) => {
 };
 
 const getTimestamp = () => new Date().getTime();
+
+type ConversationTag = {
+  id: string;
+  label: string;
+  color: string;
+};
+
+const TAG_COLORS = [
+  { value: "#3b82f6", label: "Azul", bg: "bg-blue-500", text: "text-white" },
+  { value: "#22c55e", label: "Verde", bg: "bg-green-500", text: "text-white" },
+  { value: "#ef4444", label: "Rojo", bg: "bg-red-500", text: "text-white" },
+  { value: "#eab308", label: "Amarillo", bg: "bg-yellow-500", text: "text-white" },
+  { value: "#a855f7", label: "Morado", bg: "bg-purple-500", text: "text-white" },
+  { value: "#f97316", label: "Naranja", bg: "bg-orange-500", text: "text-white" },
+  { value: "#ec4899", label: "Rosa", bg: "bg-pink-500", text: "text-white" },
+  { value: "#14b8a6", label: "Turquesa", bg: "bg-teal-500", text: "text-white" },
+];
 
 type PendingAttachment = {
   id: string;
@@ -550,9 +576,11 @@ function MobileEmojiPanel({
 function ConversationRow({
   conversation,
   onSelect,
+  tags,
 }: {
   conversation: Conversation;
   onSelect: () => void;
+  tags: ConversationTag[];
 }) {
   return (
     <button
@@ -563,7 +591,7 @@ function ConversationRow({
       }`}
     >
       {conversation.active && (
-        <span className="absolute left-0 top-0 h-full w-1 bg-primary" />
+        <span className="absolute left-0 top-0 h-full w-1 bg-muted-foreground" />
       )}
       <ChatAvatar />
       <div className="min-w-0 flex-1">
@@ -581,6 +609,19 @@ function ConversationRow({
           </p>
         ) : (
           <p className="mt-1 text-xs text-muted-foreground">Sin ultimo mensaje</p>
+        )}
+        {tags.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                style={{ backgroundColor: tag.color }}
+              >
+                {tag.label}
+              </span>
+            ))}
+          </div>
         )}
         <div className="mt-2 flex items-center justify-end gap-2 text-muted-foreground">
           <EyeIcon className="h-4 w-4" />
@@ -971,10 +1012,133 @@ export default function ChatPage() {
   const { resolvedTheme } = useTheme();
   const [messageDraft, setMessageDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>(initialTimeline);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>("932889985");
+  const allMessagesRef = useRef<Record<string, ChatMessage[]>>({ ...initialMessagesByConversation });
+
+  const switchConversation = (conversationId: string) => {
+    if (activeConversationId) {
+      allMessagesRef.current = { ...allMessagesRef.current, [activeConversationId]: messages };
+    }
+    setActiveConversationId(conversationId);
+    setMessages(allMessagesRef.current[conversationId] ?? []);
+  };
+
+  const [activeFilter, setActiveFilter] = useState<"all" | "waiting" | "resolved">("all");
+  const [waitingIds, setWaitingIds] = useState<Set<string>>(
+    new Set(conversations.filter((c) => c.waiting).map((c) => c.id)),
+  );
+  const [resolvedIds, setResolvedIds] = useState<Set<string>>(new Set());
+
+  const moveFromWaiting = (conversationId: string | null) => {
+    if (!conversationId) return;
+    setWaitingIds((current) => {
+      const next = new Set(current);
+      next.delete(conversationId);
+      return next;
+    });
+    if (activeFilter === "waiting") {
+      setActiveFilter("all");
+    }
+  };
+
+  const resolveConversation = (conversationId: string) => {
+    setWaitingIds((current) => {
+      const next = new Set(current);
+      next.delete(conversationId);
+      return next;
+    });
+    setResolvedIds((current) => new Set(current).add(conversationId));
+  };
+
+  const handleResolveCurrent = () => {
+    if (!activeConversationId) return;
+    allMessagesRef.current = { ...allMessagesRef.current, [activeConversationId]: messages };
+    resolveConversation(activeConversationId);
+    setActiveConversationId(null);
+    setMessages([]);
+  };
+
+  const handleReopenCurrent = () => {
+    if (!activeConversationId) return;
+    setResolvedIds((current) => {
+      const next = new Set(current);
+      next.delete(activeConversationId);
+      return next;
+    });
+    setActiveFilter("all");
+  };
+
+  const filteredConversations = conversations.filter((c) => {
+    if (activeFilter === "waiting") return waitingIds.has(c.id);
+    if (activeFilter === "resolved") return resolvedIds.has(c.id);
+    return !waitingIds.has(c.id) && !resolvedIds.has(c.id);
+  });
+
+  const changeFilter = (filter: "all" | "waiting" | "resolved") => {
+    setActiveFilter(filter);
+    if (activeConversationId) {
+      const willBeVisible = conversations.filter((c) => {
+        if (filter === "waiting") return waitingIds.has(c.id);
+        if (filter === "resolved") return resolvedIds.has(c.id);
+        return !waitingIds.has(c.id) && !resolvedIds.has(c.id);
+      }).find((c) => c.id === activeConversationId);
+      if (!willBeVisible) {
+        allMessagesRef.current = { ...allMessagesRef.current, [activeConversationId]: messages };
+        setActiveConversationId(null);
+        setMessages([]);
+      }
+    }
+  };
+  const [conversationTags, setConversationTags] = useState<Record<string, ConversationTag[]>>({});
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [newTagLabel, setNewTagLabel] = useState("");
+  const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0].value);
+
+  const activeConversationTags = activeConversationId ? (conversationTags[activeConversationId] ?? []) : [];
+
+  const addTag = () => {
+    if (!activeConversationId || !newTagLabel.trim()) return;
+    const tag: ConversationTag = {
+      id: `tag-${getTimestamp()}`,
+      label: newTagLabel.trim(),
+      color: newTagColor,
+    };
+    setConversationTags((current) => ({
+      ...current,
+      [activeConversationId]: [...(current[activeConversationId] ?? []), tag],
+    }));
+    setNewTagLabel("");
+    setNewTagColor(TAG_COLORS[0].value);
+  };
+
+  const removeTag = (tagId: string) => {
+    if (!activeConversationId) return;
+    setConversationTags((current) => ({
+      ...current,
+      [activeConversationId]: (current[activeConversationId] ?? []).filter((t) => t.id !== tagId),
+    }));
+  };
+
+  const openTagModal = () => {
+    setNewTagLabel("");
+    setNewTagColor(TAG_COLORS[0].value);
+    setIsTagModalOpen(true);
+  };
+
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activeMobileEmojiCategory, setActiveMobileEmojiCategory] =
     useState(mobileEmojiCategories[0].id);
-  const [mobileView, setMobileView] = useState<"list" | "conversation">("conversation");
+  const [mobileView, setMobileView] = useState<"list" | "conversation">("list");
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("crm:chat-mobile-view", {
+        detail: { conversationOpen: mobileView === "conversation" },
+      }),
+    );
+  }, [mobileView]);
   const [isDesktopRecording, setIsDesktopRecording] = useState(false);
   const [desktopRecordingSeconds, setDesktopRecordingSeconds] = useState(0);
   const [desktopRecorderError, setDesktopRecorderError] = useState("");
@@ -1134,6 +1298,7 @@ export default function ChatPage() {
         duration: desktopAudioPreview.duration,
       },
     ]);
+    moveFromWaiting(activeConversationId);
     setDesktopAudioPreview(null);
   };
 
@@ -1204,6 +1369,7 @@ export default function ChatPage() {
           duration,
         },
       ]);
+      moveFromWaiting(activeConversationId);
       return;
     }
 
@@ -1282,6 +1448,7 @@ export default function ChatPage() {
         duration: mobileAudioPreview.duration,
       },
     ]);
+    moveFromWaiting(activeConversationId);
     setMobileAudioPreview(null);
   };
 
@@ -1319,6 +1486,7 @@ export default function ChatPage() {
           duration,
         },
       ]);
+      moveFromWaiting(activeConversationId);
       return;
     }
 
@@ -1780,6 +1948,7 @@ export default function ChatPage() {
         time: getMessageTime(),
       },
     ]);
+    moveFromWaiting(activeConversationId);
     setMessageDraft("");
     if (activeInput) {
       activeInput.value = "";
@@ -1893,6 +2062,7 @@ export default function ChatPage() {
           ]
         : []),
     ]);
+    moveFromWaiting(activeConversationId);
 
     setPendingAttachments([]);
     setActiveAttachmentId(null);
@@ -1971,6 +2141,7 @@ export default function ChatPage() {
     null;
 
   return (
+    <>
     <section className="flex h-full min-h-0 bg-background text-foreground">
       <aside
         className={`w-full shrink-0 flex-col border-r border-border bg-background md:flex md:w-[360px] xl:w-[380px] ${
@@ -1984,7 +2155,7 @@ export default function ChatPage() {
               <input
                 type="search"
                 placeholder="Buscar por numero de celular o nombre ..."
-                className="h-10 w-full rounded-full border-0 bg-muted pl-11 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/30"
+                className="h-10 w-full rounded-full border-0 bg-muted pl-11 pr-4 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-muted-foreground/30"
               />
             </div>
             <Button
@@ -2004,37 +2175,40 @@ export default function ChatPage() {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Badge className="border-primary/20 bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
-              Todos los chats
-              <ChevronDownIcon className="ml-1 h-3 w-3" />
-              <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
-                6
-              </span>
-            </Badge>
-            <Badge
-              variant="outline"
-              className="px-3 py-1 text-sm font-medium text-foreground"
-            >
-              Resueltos
-              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground">
-                0
-              </span>
-            </Badge>
-            <Badge
-              variant="outline"
-              className="px-3 py-1 text-sm font-medium text-foreground"
-            >
-              Espera
-            </Badge>
+            <button type="button" onClick={() => changeFilter("all")}>
+              <Badge variant="outline" className={`px-3 py-1 text-sm font-semibold ${activeFilter === "all" ? "border-transparent bg-muted text-foreground" : "text-muted-foreground"}`}>
+                Todos los chats
+                <span className="ml-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground/20 px-1 text-[10px] text-foreground">
+                  {conversations.filter((c) => !waitingIds.has(c.id) && !resolvedIds.has(c.id)).length}
+                </span>
+              </Badge>
+            </button>
+            <button type="button" onClick={() => changeFilter("resolved")}>
+              <Badge variant="outline" className={`px-3 py-1 text-sm ${activeFilter === "resolved" ? "border-transparent bg-muted text-foreground font-semibold" : "text-muted-foreground"}`}>
+                Resueltos
+                <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground/20 px-1 text-[10px] text-foreground">
+                  {resolvedIds.size}
+                </span>
+              </Badge>
+            </button>
+            <button type="button" onClick={() => changeFilter("waiting")}>
+              <Badge variant="outline" className={`px-3 py-1 text-sm ${activeFilter === "waiting" ? "border-transparent bg-muted text-foreground font-semibold" : "text-muted-foreground"}`}>
+                Espera
+                <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground/20 px-1 text-[10px] text-foreground">
+                  {waitingIds.size}
+                </span>
+              </Badge>
+            </button>
           </div>
         </div>
 
         <div className="sidebar-scroll min-h-0 flex-1 overflow-y-auto">
-          {conversations.map((conversation) => (
+          {filteredConversations.map((conversation) => (
             <ConversationRow
               key={conversation.id}
-              conversation={conversation}
-              onSelect={() => setMobileView("conversation")}
+              conversation={{ ...conversation, active: conversation.id === activeConversationId }}
+              onSelect={() => { switchConversation(conversation.id); setMobileView("conversation"); }}
+              tags={conversationTags[conversation.id] ?? []}
             />
           ))}
         </div>
@@ -2049,8 +2223,16 @@ export default function ChatPage() {
         onDragLeave={handleChatDragLeave}
         onDrop={handleChatDrop}
       >
+        {!activeConversationId ? (
+          <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+            <ChatBubbleLeftRightIcon className="h-16 w-16 text-muted-foreground/40" />
+            <p className="text-lg font-semibold text-muted-foreground">Busca un nuevo chat</p>
+            <p className="text-sm text-muted-foreground/70">Selecciona una conversacion para empezar</p>
+          </div>
+        ) : (
+          <>
         <header className="shrink-0 border-b border-border bg-background">
-          <div className="flex min-h-[84px] items-center justify-between gap-4 border-l-4 border-primary px-4 py-3">
+          <div className="flex min-h-[84px] items-center justify-between gap-4 border-l-4 border-muted-foreground px-4 py-3">
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -2063,31 +2245,76 @@ export default function ChatPage() {
               <ChatAvatar />
               <div className="min-w-0">
                 <h2 className="truncate text-base font-bold text-foreground">
-                  932889985
+                  {activeConversationId}
                 </h2>
                 <p className="mt-1 text-xs text-foreground">
                   Asignado: Cristofer Leonardo
                 </p>
                 <p className="mt-1 text-xs text-foreground">
-                  Numero: 51932889985
+                  Numero: {activeConversationId === "51987654321" ? "51987654321" : "51932889985"}
                 </p>
               </div>
             </div>
-            <div className="flex overflow-hidden rounded-full bg-primary text-primary-foreground shadow-sm">
-              <Button className="h-10 rounded-none bg-primary px-9 text-xs font-bold text-primary-foreground hover:bg-primary/90">
-                RESOLVER
-              </Button>
-              <Button className="h-10 w-11 rounded-none border-l border-primary-foreground/30 bg-primary px-0 text-primary-foreground hover:bg-primary/90">
-                <ChevronDownIcon className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center gap-2">
+              {!waitingIds.has(activeConversationId) && (
+              <div className="flex overflow-hidden rounded-full bg-muted text-foreground shadow-sm">
+                {resolvedIds.has(activeConversationId) ? (
+                  <Button
+                    onClick={() => handleReopenCurrent()}
+                    className="h-10 rounded-none bg-muted px-9 text-xs font-bold text-foreground hover:bg-muted/80"
+                  >
+                    REHACER
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => handleResolveCurrent()}
+                    className="h-10 rounded-none bg-muted px-9 text-xs font-bold text-foreground hover:bg-muted/80"
+                  >
+                    RESOLVER
+                  </Button>
+                )}
+                <Button className="h-10 w-11 rounded-none border-l border-border bg-muted px-0 text-foreground hover:bg-muted/80">
+                  <ChevronDownIcon className="h-4 w-4" />
+                </Button>
+              </div>
+              )}
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                  isSidebarOpen
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+                aria-label="Abrir panel de venta"
+                title="Venta Rapida"
+              >
+                <ShoppingBagIcon className="h-5 w-5" />
+              </button>
             </div>
           </div>
 
           <button
             type="button"
-            className="flex h-10 w-full items-center justify-between px-4 text-left text-sm text-muted-foreground"
+            onClick={openTagModal}
+            className="flex h-10 w-full items-center justify-between px-4 text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            Etiquetas ...
+            <span className="flex items-center gap-2">
+              Etiquetas
+              {activeConversationTags.length > 0 && (
+                <span className="flex items-center gap-1">
+                  {activeConversationTags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      {tag.label}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </span>
             <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
           </button>
         </header>
@@ -2243,7 +2470,7 @@ export default function ChatPage() {
                       onMouseDown={handleMobileEmojiMouseDown}
                       onClick={handleMobileEmojiClick}
                       data-testid="mobile-emoji-button"
-                      className="mb-1 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-primary"
+                       className="mb-1 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       aria-label="Abrir selector de emojis"
                       aria-expanded={emojiPickerOpen}
                     >
@@ -2477,7 +2704,7 @@ export default function ChatPage() {
                     ref={desktopEmojiButtonRef}
                     type="button"
                     onClick={handleEmojiToggle}
-                    className="mb-1 flex h-9 w-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted hover:text-primary"
+                    className="mb-1 flex h-9 w-7 items-center justify-center rounded-full text-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label="Abrir selector de emojis"
                     aria-expanded={emojiPickerOpen}
                   >
@@ -2522,7 +2749,7 @@ export default function ChatPage() {
                   aria-label={messageDraft.trim() ? "Enviar mensaje" : "Grabar audio"}
                 >
                   {messageDraft.trim() ? (
-                    <PaperAirplaneIcon className="h-5 w-5 text-primary" />
+                    <PaperAirplaneIcon className="h-5 w-5 text-foreground" />
                   ) : (
                     <MicrophoneIcon className="h-5 w-5" />
                   )}
@@ -2745,7 +2972,147 @@ export default function ChatPage() {
             </div>
           </div>
         )}
+          </>
+        )}
       </div>
+      {isSidebarOpen && activeConversationId && (
+        <div className="hidden w-[340px] shrink-0 md:block">
+          <ChatSidebar
+            clientPhone={activeConversationId}
+            onClose={() => setIsSidebarOpen(false)}
+            onSendToChat={(text) => {
+              allMessagesRef.current = { ...allMessagesRef.current, [activeConversationId]: messages };
+              const newMsg: ChatMessage = {
+                id: `system-${getTimestamp()}`,
+                type: "outgoing",
+                text,
+                time: new Intl.DateTimeFormat("es-PE", { hour: "2-digit", minute: "2-digit" }).format(new Date()),
+              };
+              setMessages((current) => [...current, newMsg]);
+              moveFromWaiting(activeConversationId);
+            }}
+          />
+        </div>
+      )}
+
+    {/* Mobile sidebar overlay - fullscreen */}
+    {isSidebarOpen && activeConversationId && (
+      <div className="fixed inset-0 z-50 flex flex-col bg-background md:hidden">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-2.5">
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeftIcon className="h-4 w-4" />
+            Volver al chat
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <ChatSidebar
+            clientPhone={activeConversationId}
+            onClose={() => setIsSidebarOpen(false)}
+            onSendToChat={(text) => {
+              allMessagesRef.current = { ...allMessagesRef.current, [activeConversationId]: messages };
+              const newMsg: ChatMessage = {
+                id: `system-${getTimestamp()}`,
+                type: "outgoing",
+                text,
+                time: new Intl.DateTimeFormat("es-PE", { hour: "2-digit", minute: "2-digit" }).format(new Date()),
+              };
+              setMessages((current) => [...current, newMsg]);
+              moveFromWaiting(activeConversationId);
+            }}
+          />
+        </div>
+      </div>
+    )}
     </section>
+
+    <Dialog open={isTagModalOpen} onOpenChange={setIsTagModalOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Agregar etiqueta</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">
+              Nombre de la etiqueta
+            </label>
+            <input
+              type="text"
+              value={newTagLabel}
+              onChange={(e) => setNewTagLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addTag(); }}
+              placeholder="Ej: Pendiente, Urgente, VIP..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-muted-foreground/30"
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">
+              Color
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {TAG_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  type="button"
+                  onClick={() => setNewTagColor(color.value)}
+                  className={`h-8 w-8 rounded-full ${color.bg} transition-all ${
+                    newTagColor === color.value
+                      ? "ring-2 ring-foreground ring-offset-2 scale-110"
+                      : "hover:scale-105"
+                  }`}
+                  title={color.label}
+                />
+              ))}
+            </div>
+          </div>
+          {activeConversationTags.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                Etiquetas actuales
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {activeConversationTags.map((tag) => (
+                  <span
+                    key={tag.id}
+                    className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
+                    style={{ backgroundColor: tag.color }}
+                  >
+                    {tag.label}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag.id)}
+                      className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/30 hover:bg-white/50 transition-colors"
+                    >
+                      <XMarkIcon className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsTagModalOpen(false)}
+              size="sm"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={addTag}
+              size="sm"
+              disabled={!newTagLabel.trim()}
+              className="bg-foreground text-background hover:bg-foreground/90"
+            >
+              Agregar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

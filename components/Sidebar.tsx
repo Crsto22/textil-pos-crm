@@ -9,8 +9,9 @@ import {
   ChevronLeftIcon,
   Cog6ToothIcon,
   HomeModernIcon,
+  LinkIcon,
   MagnifyingGlassIcon,
-  SignalIcon,
+  TagIcon,
   UserGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -18,7 +19,8 @@ import {
   ChartBarIcon as ChartBarIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
   Cog6ToothIcon as Cog6ToothIconSolid,
-  SignalIcon as SignalIconSolid,
+  LinkIcon as LinkIconSolid,
+  TagIcon as TagIconSolid,
   UserGroupIcon as UserGroupIconSolid,
 } from "@heroicons/react/24/solid";
 
@@ -52,30 +54,36 @@ export const navSections: SidebarSection[] = [
         icon: ChatBubbleLeftRightIcon,
         iconActive: ChatBubbleLeftRightIconSolid,
       },
-      {
-        label: "Conexion",
-        href: "/conexion",
-        icon: SignalIcon,
-        iconActive: SignalIconSolid,
-      },
-      {
-        label: "Contacto",
-        href: "/contacto",
-        icon: UserGroupIcon,
-        iconActive: UserGroupIconSolid,
-      },
-      {
-        label: "Configuracion",
-        href: "/configuracion",
-        icon: Cog6ToothIcon,
-        iconActive: Cog6ToothIconSolid,
-      },
-      {
-        label: "Reportes",
-        href: "/reportes",
-        icon: ChartBarIcon,
-        iconActive: ChartBarIconSolid,
-      },
+        {
+          label: "Contacto",
+          href: "/contacto",
+          icon: UserGroupIcon,
+          iconActive: UserGroupIconSolid,
+        },
+        {
+          label: "Conexiones",
+          href: "/conexiones",
+          icon: LinkIcon,
+          iconActive: LinkIconSolid,
+        },
+        {
+          label: "Configuracion",
+          href: "/configuracion",
+          icon: Cog6ToothIcon,
+          iconActive: Cog6ToothIconSolid,
+        },
+        {
+          label: "Etiquetas",
+          href: "/etiquetas",
+          icon: TagIcon,
+          iconActive: TagIconSolid,
+        },
+        {
+          label: "Reportes",
+          href: "/reportes",
+          icon: ChartBarIcon,
+          iconActive: ChartBarIconSolid,
+        },
     ],
   },
 ];
