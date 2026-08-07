@@ -1147,6 +1147,9 @@ export default function ChatPage() {
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+
+  const [isAiMode, setIsAiMode] = useState(false);
+  const [isAiTyping, setIsAiTyping] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [activeMobileEmojiCategory, setActiveMobileEmojiCategory] =
     useState(mobileEmojiCategories[0].id);
@@ -1946,6 +1949,95 @@ export default function ChatPage() {
     moveFromWaiting(activeConversationId ?? "")
   }
 
+  const generateAiResponse = (incomingText: string): string => {
+    const text = incomingText.toLowerCase()
+    if (text.includes("precio") || text.includes("cuanto") || text.includes("cuesta") || text.includes("s/") || text.includes("monto") || text.includes("costo")) {
+      return "¡Hola! El modelo CIELO está S/89.00 con delivery incluido a todo el Perú. Aceptamos Yape, Plin, transferencia y efectivo. ¿Te gustaría ver los colores disponibles? 😊"
+    }
+    if (text.includes("color") || text.includes("colores") || text.includes("azul") || text.includes("beige") || text.includes("camel") || text.includes("chocolate") || text.includes("gris")) {
+      return "¡Tenemos 5 colores hermosos! 🌈 CIELO viene en Azul, Beige, Camel, Chocolate y Gris Oscuro. ¿Cuál te gusta más? Puedo enviarte el catálogo en PDF si gustas."
+    }
+    if (text.includes("talla") || text.includes("tallas") || text.includes("tamaño") || text.includes("medida") || text.includes("s") || text.includes("m") || text.includes("l") || text.includes("xl")) {
+      return "¡Claro! Contamos con talla S, M, L y XL. ¿Qué talla necesitas? También te podemos ayudar a elegir la mejor talla según tus medidas. 😊"
+    }
+    if (text.includes("catalogo") || text.includes("catálogo") || text.includes("pdf") || text.includes("fotos") || text.includes("foto") || text.includes("imagen") || text.includes("ver")) {
+      return "📄 ¡Con gusto! Te estoy enviando el catálogo completo de CIELO con todos los colores y tallas disponibles. Cualquier consulta, solo dime."
+    }
+    if (text.includes("envio") || text.includes("envío") || text.includes("delivery") || text.includes("llega") || text.includes("distrito") || text.includes("provincia")) {
+      return "🚚 ¡Sí! Hacemos delivery a todo el Perú. El envío se coordina según tu ubicación. ¿A qué distrito o provincia necesitas el envío?"
+    }
+    if (text.includes("pago") || text.includes("yape") || text.includes("plin") || text.includes("transferencia") || text.includes("tarjeta") || text.includes("efectivo")) {
+      return "💳 Aceptamos todos los medios de pago: Yape, Plin, transferencia bancaria, tarjeta y efectivo. ¡Tú eliges el que más te convenga!"
+    }
+    if (text.includes("stock") || text.includes("disponible") || text.includes("hay") || text.includes("tiene") || text.includes("tienen")) {
+      return "¡Sí! Tenemos stock disponible de todos los colores del modelo CIELO. ¿Cuál te interesa? Puedo reservártelo si gustas. 😊"
+    }
+    return "¡Gracias por escribirnos! 😊 En Kiments tenemos el modelo CIELO disponible en 5 colores desde S/89.00. ¿En qué puedo ayudarte hoy?"
+  }
+
+  const triggerSimulatedConversation = (initialText: string) => {
+    if (!isAiMode) return
+    // Step 1: AI responds to initial message
+    setIsAiTyping(true)
+    const aiResponse1 = generateAiResponse(initialText)
+    setTimeout(() => {
+      setIsAiTyping(false)
+      setMessages((current) => [
+        ...current,
+        { id: `ai-${getTimestamp()}`, type: "outgoing", text: aiResponse1, time: getMessageTime() },
+      ])
+      moveFromWaiting(activeConversationId ?? "")
+
+      // Step 2: Client replies back (simulated)
+      const clientFollowUps = [
+        "me gustaria ver el azul",
+        "si, mandame el catalogo por favor",
+        "tienes delivery a San Juan de Lurigancho?",
+        "aceptas yape?",
+        "ok, envuelvemelo para regalo",
+        "lo quiero en talla M",
+        "cual es el precio con delivery?",
+        "me lo llevo, mandame el yape",
+      ]
+      const clientReply = clientFollowUps[Math.floor(Math.random() * clientFollowUps.length)]
+
+      setTimeout(() => {
+        setMessages((current) => [
+          ...current,
+          { id: `in-sim-${getTimestamp()}`, type: "incoming", text: clientReply, time: getMessageTime() },
+        ])
+
+        // Step 3: AI final response
+        setIsAiTyping(true)
+        const aiResponse2 = generateAiResponse(clientReply)
+        setTimeout(() => {
+          setIsAiTyping(false)
+          setMessages((current) => [
+            ...current,
+            { id: `ai2-${getTimestamp()}`, type: "outgoing", text: aiResponse2, time: getMessageTime() },
+          ])
+
+          // Step 4: Client confirms purchase
+          const confirmations = [
+            "listo, lo compro. pasame el yape",
+            "ya, enviame el numero para transferir",
+            "perfecto, quiero el azul talla M. dime como pago",
+            "ok compro, enviame los datos de cuenta porfa",
+            "trato hecho, mandame el yape nomas",
+          ]
+          const confirmation = confirmations[Math.floor(Math.random() * confirmations.length)]
+
+          setTimeout(() => {
+            setMessages((current) => [
+              ...current,
+              { id: `in-confirm-${getTimestamp()}`, type: "incoming", text: confirmation, time: getMessageTime() },
+            ])
+          }, 3000 + Math.random() * 2000)
+        }, 2500 + Math.random() * 1500)
+      }, 3000 + Math.random() * 2000)
+    }, 2500 + Math.random() * 1500)
+  }
+
   const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -2181,6 +2273,29 @@ export default function ChatPage() {
     void handleStartDesktopAudioRecording();
   };
 
+  const aiRespondedRef = useRef(false)
+
+  useEffect(() => {
+    if (!isAiMode || !activeConversationId) return
+    const lastMsg = messages[messages.length - 1]
+    if (lastMsg?.type === "incoming" && !aiRespondedRef.current) {
+      const hasOutgoing = messages.some((m) => m.type === "outgoing" || m.type === "outgoing-file" || m.type === "outgoing-audio")
+      if (!hasOutgoing) {
+        aiRespondedRef.current = true
+        const text = lastMsg.text
+        setTimeout(() => triggerSimulatedConversation(text), 500)
+      }
+    }
+    if (lastMsg?.type !== "incoming") {
+      aiRespondedRef.current = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length])
+
+  useEffect(() => {
+    aiRespondedRef.current = false
+  }, [activeConversationId])
+
   const activeAttachment =
     pendingAttachments.find((attachment) => attachment.id === activeAttachmentId) ??
     pendingAttachments[0] ??
@@ -2301,6 +2416,35 @@ export default function ChatPage() {
                 </p>
               </div>
             </div>
+
+            {/* IA Toggle */}
+            <div className="flex items-center gap-1 rounded-xl bg-muted p-0.5">
+              <button
+                type="button"
+                onClick={() => setIsAiMode(true)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                  isAiMode
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <SparklesIcon className="h-3.5 w-3.5" />
+                Kiments IA
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAiMode(false)}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                  !isAiMode
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <UserIconSolid className="h-3.5 w-3.5" />
+                Humano
+              </button>
+            </div>
+
             <div className="flex items-center gap-2">
               {!waitingIds.has(activeConversationId) && (
               <div className="flex overflow-hidden rounded-full bg-muted text-foreground shadow-sm">
@@ -2376,6 +2520,19 @@ export default function ChatPage() {
                   onOpenImagePreview={setImagePreview}
                 />
               ))}
+              {isAiTyping && (
+                <div className="flex items-center gap-2 rounded-lg bg-background/80 px-4 py-3 w-fit shadow-sm animate-pulse">
+                  <SparklesIcon className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs text-muted-foreground">
+                    Kiments IA escribiendo
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
